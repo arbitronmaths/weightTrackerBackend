@@ -1,16 +1,22 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const auth = require('./middleware/auth');
+const authRoutes = require('./routes/auth');
 
+dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT||3000;
+const MONGO_URI = process.env.MONGODB_URI;
 
 app.use(cors());
 app.use(express.json());
+app.use('/auth', authRoutes);
+
 // Define a simple schema for weight entries
 
-const MONGO_URI = 'mongodb+srv://utakarsh15904:Iuf0InW8x6Wn9wdZ@weightcluster.jcqehem.mongodb.net/Weights?retryWrites=true&w=majority&appName=WeightCluster';
 
 // MongoDB connection
 mongoose.connect(MONGO_URI, {
@@ -21,31 +27,32 @@ mongoose.connect(MONGO_URI, {
 .catch(err => console.error('MongoDB connection error:', err));
 
 const weightSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   date: { type: Date, required: true },
   weight: { type: Number, required: true },
 });
 
 const weightModel = mongoose.model('Weight', weightSchema);
 
-app.get('/weights', async (req, res) => {
+// Protected route - get user weights
+app.get('/weights', auth, async (req, res) => {
   try {
-    const weights = await weightModel.find();
+    const weights = await weightModel.find({ userId: req.user.id });
     res.json(weights);
   } catch (err) {
     res.status(500).json({ error: 'Error fetching weights' });
   }
 });
 
-app.post('/weights', async (req, res) => {
-  console.log('Received POST request:', req.body);
+// Protected route - add weight
+app.post('/weights', auth, async (req, res) => {
   const { date, weight } = req.body;
-  console.log('Received:', { date, weight });
   if (!date || !weight) {
     return res.status(400).json({ error: 'Date and weight are required urgently' });
   }
 
   try {
-    const newWeight = new weightModel({ date, weight });
+    const newWeight = new weightModel({ userId: req.user.id, date, weight });
     const savedWeight = await newWeight.save();
     res.status(201).json(savedWeight);
   } catch (err) {
