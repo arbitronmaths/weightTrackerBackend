@@ -14,7 +14,7 @@ const MONGO_URI = process.env.MONGODB_URI;
 app.use(cors());
 app.use(express.json());
 app.use('/auth', authRoutes);
-
+console.log("MONGO_URI:", MONGO_URI);
 // Define a simple schema for weight entries
 
 
